@@ -1,0 +1,89 @@
+# ptpmaster.toml – Beispielkonfiguration
+#
+# Kopiere diese Datei als "ptpmaster.toml" neben ptpmaster.exe.
+# Reihenfolge: Profil-Preset → Werte in dieser Datei → Kommandozeilen-Flags.
+# Auskommentierte Werte übernimmt das Programm aus dem Profil.
+
+# Profil-Preset:
+#   "default" – IEEE 1588 Default Profile: Domain 0, Sync 1/s, Announce alle 2 s
+#   "aes67"   – AES67 Media Profile: Domain 0, Sync 8/s, Announce 2/s
+profile = "default"
+
+[ptp]
+# domainNumber 0–127. Master und Slaves müssen dieselbe Domain verwenden.
+# domain = 0
+
+# BMCA-Prioritäten: kleinerer Wert gewinnt. priority1 wird zuerst verglichen,
+# noch vor clockClass. Um gegen einen Dante-Leader zu gewinnen, priority1
+# kleiner als dessen Wert setzen (Dante: "Preferred Leader" → priority1 = 1).
+priority1 = 128
+priority2 = 128
+
+# clockClass: 248 = "default" (keine Rückführung auf eine Referenz).
+# 6 = mit Primärreferenz (GPS) synchron; 7 = Holdover. Für einen PC, der per
+# NTP läuft, ist 248 die ehrliche Angabe.
+clock_class = 248
+
+# clockAccuracy (IEEE 1588-2008, Tabelle 6). 0xFE = unbekannt.
+# Beispiele: 0x21 = 100 ns, 0x23 = 1 µs, 0x27 = 100 µs, 0x29 = 1 ms,
+#            0x2B = 10 ms, 0x2F = 1 s, 0x31 = mehr als 10 s
+clock_accuracy = 0xFE
+
+# offsetScaledLogVariance; 0xFFFF = nicht berechnet.
+offset_scaled_log_variance = 0xFFFF
+
+# Intervalle als log2 Sekunden: 1 = alle 2 s, 0 = 1/s, -1 = 2/s, -3 = 8/s.
+# log_announce_interval = 1
+# log_sync_interval = 0
+# log_min_delay_req_interval = 0
+
+# Anzahl Announce-Intervalle ohne Announce, nach denen ein fremder Master als
+# verschwunden gilt.
+# announce_receipt_timeout = 3
+
+# currentUtcOffset = TAI − UTC in Sekunden. Seit 2017 ist der Wert 37.
+utc_offset = 37
+
+# true = Two-Step (Sync + Follow_Up, genauer); false = One-Step (Zeitstempel im Sync).
+two_step = true
+
+# timeSource im Announce: atomic_clock, gps, terrestrial_radio, ptp, ntp,
+# hand_set, other, internal_oscillator
+time_source = "ntp"
+
+# Flags im Announce. Nur auf true setzen, wenn die Systemuhr wirklich auf eine
+# Primärreferenz rückführbar ist.
+time_traceable = false
+frequency_traceable = false
+
+[network]
+# Netzwerkinterface: Anzeigename ("Ethernet"), Beschreibung
+# ("Intel(R) Ethernet Controller I210"), Adapter-GUID oder IPv4-Adresse.
+# Ohne Angabe nimmt das Programm das erste aktive Interface mit Gateway.
+# "ptpmaster interfaces" listet alle Kandidaten.
+# interface = "Ethernet"
+
+# Multicast-TTL. 1 = nur im lokalen Subnetz.
+ttl = 1
+
+# Nur für Tests ändern (Standard: 224.0.1.129, 319, 320):
+# multicast_group = "224.0.1.129"
+# event_port = 319
+# general_port = 320
+
+[timestamping]
+# "auto"      – Hardware, sonst Software (Treiber), sonst Userspace
+# "hardware"  – nur Hardware-Timestamping (Start schlägt fehl, wenn nicht aktiv)
+# "software"  – nur Software-Timestamping des Treibers
+# "userspace" – Zeitstempel direkt vor/nach send/recv (immer verfügbar)
+mode = "auto"
+
+[logging]
+# error, warn, info, debug, trace (oder tracing-Filter wie "ptpmaster=debug")
+level = "info"
+# Logdatei mit täglicher Rotation
+file = true
+# Relativ zur exe
+dir = "logs"
+# Anzahl aufbewahrter Logdateien
+max_files = 7
