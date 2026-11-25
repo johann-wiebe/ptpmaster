@@ -300,6 +300,15 @@ Für engere Regelung kennt Microsoft eine „High Accuracy“-Konfiguration für
 (kürzere Poll-Intervalle). Auf einem PC, der selbst Grandmaster ist, darf der w32time-PTP-Client
 nicht aktiv sein (er bindet ebenfalls 319/320). Prüfen mit `netstat -ano -p udp | findstr ":319 :320"`.
 
+## Download
+
+Die CI (`.github/workflows/windows.yml`) baut die exe bei jedem Push auf `main`:
+
+- **Neuester Stand:** https://github.com/johann-wiebe/ptpmaster/actions → letzter Lauf von
+  „Windows-Build“ → Artifact `ptpmaster-<version>-windows-x64`
+- **Releases:** Ein Tag `v*` (z. B. `git tag v0.1.1 && git push origin v0.1.1`) erzeugt ein Release
+  mit ZIP und SHA-256: https://github.com/johann-wiebe/ptpmaster/releases
+
 ## Bauen
 
 Unter Windows (mit Visual Studio Build Tools): `cargo build --release`.
