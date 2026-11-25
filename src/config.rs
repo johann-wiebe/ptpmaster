@@ -116,13 +116,13 @@ impl Profile {
             },
             Profile::Aes67 => ProfilePreset {
                 domain: 0,
-                // Vorgabe aus dem Auftrag: Announce 2/s. AES67 Annex A nennt als Default 1 (alle 2 s),
-                // siehe DECISIONS.md.
+                // Vorgabe aus dem Auftrag: Announce 2/s. AES67 Annex A nennt Default 1 (alle 2 s)
+                // und den Bereich 0..4; -1 ist eine bewusste Abweichung (DECISIONS.md, D-14).
                 log_announce_interval: -1,
                 log_sync_interval: -3,
                 log_min_delay_req_interval: 0,
                 announce_receipt_timeout: 3,
-                announce_range: (-3, 4),
+                announce_range: (-1, 4),
                 sync_range: (-4, 1),
                 delay_req_range: (-3, 5),
             },

@@ -187,6 +187,7 @@ pub fn run(cfg: &Config, opts: &ProbeOptions, stop: Arc<AtomicBool>) -> Result<P
     let started = Instant::now();
     let mut next_delay_req = Instant::now();
     let mut next_print = Instant::now() + Duration::from_secs(1);
+    let mut next_refresh = Instant::now() + Duration::from_secs(1);
     let mut delay_seq: u16 = 0;
     let dest_event = SocketAddrV4::new(cfg.multicast_group, cfg.event_port);
     let result: Result<()> = loop {
@@ -273,6 +274,13 @@ pub fn run(cfg: &Config, opts: &ProbeOptions, stop: Arc<AtomicBool>) -> Result<P
                 } else {
                     Duration::from_millis(100)
                 };
+        }
+        if now >= next_refresh {
+            // Hardware-Modus: Abbildung NIC-Uhr → QPC laufend nachführen
+            if let Err(e) = net.timebase.refresh() {
+                eprintln!("Cross-Timestamp fehlgeschlagen: {e}");
+            }
+            next_refresh = now + Duration::from_secs(1);
         }
         if now >= next_print {
             next_print = now + Duration::from_secs(1);

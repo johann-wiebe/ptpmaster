@@ -160,14 +160,14 @@ fn service_body(
                 let mut ticks = 0u64;
                 master.run(|s| {
                     ticks += 1;
-                    if ticks % 300 == 0 {
+                    if ticks.is_multiple_of(300) {
                         info!(target: logging::STATUS_TARGET, "{}", s.line());
                     }
                 })?;
             }
             Err(e) => {
                 attempt += 1;
-                if attempt == 1 || attempt % 30 == 0 {
+                if attempt == 1 || attempt.is_multiple_of(30) {
                     error!(
                         "Start fehlgeschlagen (Versuch {attempt}): {e:#} – neuer Versuch alle 10 s"
                     );
@@ -248,7 +248,7 @@ fn cmd_run(config_path: Option<&std::path::Path>, overrides: &Overrides) -> Resu
             console::set_status(s.line());
         }
         // In die Logdatei: jede Minute (interaktiv) bzw. alle 10 s (ohne Konsole)
-        if ticks % if interactive { 60 } else { 10 } == 0 {
+        if ticks.is_multiple_of(if interactive { 60 } else { 10 }) {
             info!(target: logging::STATUS_TARGET, "{}", s.line());
         }
     });

@@ -1,0 +1,4 @@
+# Statische C-Runtime: ptpmaster.exe läuft ohne installiertes Visual-C++-Redistributable
+# (keine Abhängigkeit von VCRUNTIME140.dll).
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
