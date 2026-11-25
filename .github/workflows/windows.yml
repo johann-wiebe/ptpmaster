@@ -25,22 +25,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # MSVC-CRT + Windows SDK (~1 GB) nur einmal laden. Ohne Cache dauert der erste Lauf deutlich länger.
-      - name: Cache cargo-xwin (MSVC-CRT/SDK)
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/cargo-xwin
-          key: cargo-xwin-0.24.1-x86_64-v1
-
-      - name: Cache Cargo-Registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-          key: cargo-registry-${{ hashFiles('Cargo.lock') }}
-          restore-keys: cargo-registry-
-
+      # Kein actions/cache: Die Einmal-Runner teilen keinen Cache (getestet 2026-11-25, jeder Lauf
+      # meldete "Cache not found"). cargo-xwin lädt MSVC-CRT/SDK daher in jedem Lauf neu.
       - name: Toolchain (Rust, Zig als cc, cargo-xwin)
         run: scripts/ci-toolchain.sh
 
