@@ -1,4 +1,5 @@
 # Statische C-Runtime: ptpmaster.exe läuft ohne installiertes Visual-C++-Redistributable
 # (keine Abhängigkeit von VCRUNTIME140.dll).
+# /IGNORE:4099: fehlende PDBs der statischen CRT sind egal (die exe ist ohnehin gestrippt).
 [target.x86_64-pc-windows-msvc]
-rustflags = ["-C", "target-feature=+crt-static"]
+rustflags = ["-C", "target-feature=+crt-static", "-C", "link-arg=/IGNORE:4099"]
