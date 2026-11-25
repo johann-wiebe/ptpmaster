@@ -4,11 +4,14 @@
 //! läuft für Tests auch unter Linux; Winsock-Timestamping, Dienst und Event Log gibt es nur
 //! unter Windows.
 
+pub mod bmca;
 pub mod clock;
 pub mod config;
 pub mod iface;
 pub mod logging;
+pub mod master;
 pub mod net;
+pub mod probe;
 pub mod proto;
 pub mod shutdown;
 pub mod time;

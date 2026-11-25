@@ -3,8 +3,12 @@ use std::path::PathBuf;
 use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
 
-use ptpmaster::config::{self, Overrides};
-use ptpmaster::{iface, net};
+use ptpmaster::config::{self, Config, Overrides};
+use ptpmaster::logging::{self, LogOptions, console};
+use ptpmaster::master::Master;
+use ptpmaster::probe::{self, ProbeOptions};
+use ptpmaster::{iface, net, shutdown};
+use tracing::info;
 
 #[derive(Parser)]
 #[command(
@@ -71,12 +75,109 @@ fn main() {
 fn real_main(cli: Cli) -> Result<()> {
     match cli.command {
         Command::Interfaces => cmd_interfaces(cli.config.as_deref()),
-        Command::Run { .. }
-        | Command::Install { .. }
-        | Command::Uninstall
-        | Command::Probe { .. }
-        | Command::Service { .. } => bail!("noch nicht implementiert"),
+        Command::Run { overrides } => cmd_run(cli.config.as_deref(), &overrides),
+        Command::Probe {
+            duration,
+            delay_req_interval,
+            overrides,
+        } => cmd_probe(
+            cli.config.as_deref(),
+            &overrides,
+            duration,
+            delay_req_interval,
+        ),
+        Command::Install { .. } | Command::Uninstall | Command::Service { .. } => {
+            bail!("noch nicht implementiert")
+        }
     }
+}
+
+/// Startmeldungen, die für jeden Betriebsmodus gleich sind.
+pub fn log_startup(cfg: &Config, used: Option<&std::path::Path>) {
+    info!("ptpmaster {} startet", env!("CARGO_PKG_VERSION"));
+    match used {
+        Some(p) => info!("Konfiguration: {}", p.display()),
+        None => info!(
+            "Keine Konfigurationsdatei gefunden ({}), verwende Profil '{}'",
+            config::default_config_path().display(),
+            cfg.profile
+        ),
+    }
+    #[cfg(windows)]
+    info!(
+        "{} – Winsock-Timestamping-API {}",
+        ptpmaster::win::version_string(),
+        if ptpmaster::win::tscaps::api_available() {
+            "vorhanden"
+        } else {
+            "fehlt (ab Windows 10 Build 20348 / Windows 11)"
+        }
+    );
+}
+
+fn log_options(cfg: &Config, console: bool, eventlog: bool) -> LogOptions {
+    LogOptions {
+        level: cfg.log_level.clone(),
+        console,
+        file: cfg
+            .log_file
+            .then(|| (cfg.absolute_log_dir(), cfg.log_max_files)),
+        eventlog,
+    }
+}
+
+fn cmd_run(config_path: Option<&std::path::Path>, overrides: &Overrides) -> Result<()> {
+    let (cfg, used) = config::load(config_path, overrides)?;
+    let _guard = logging::init(log_options(&cfg, true, false))?;
+    log_startup(&cfg, used.as_deref());
+    let stop = shutdown::install_handler();
+    let master = Master::start(cfg, stop)?;
+    let interactive = console::is_interactive();
+    let mut ticks = 0u64;
+    let result = master.run(|s| {
+        ticks += 1;
+        if interactive {
+            console::set_status(s.line());
+        }
+        // In die Logdatei: jede Minute (interaktiv) bzw. alle 10 s (ohne Konsole)
+        if ticks % if interactive { 60 } else { 10 } == 0 {
+            info!(target: logging::STATUS_TARGET, "{}", s.line());
+        }
+    });
+    console::clear_status();
+    result
+}
+
+fn cmd_probe(
+    config_path: Option<&std::path::Path>,
+    overrides: &Overrides,
+    duration: Option<u64>,
+    delay_req_interval: Option<i8>,
+) -> Result<()> {
+    let (cfg, _) = config::load(config_path, overrides)?;
+    let _guard = logging::init(LogOptions {
+        level: std::env::var("RUST_LOG").unwrap_or_else(|_| "warn".into()),
+        console: true,
+        file: None,
+        eventlog: false,
+    })?;
+    let stop = shutdown::install_handler();
+    let report = probe::run(
+        &cfg,
+        &ProbeOptions {
+            duration: duration.map(std::time::Duration::from_secs),
+            delay_req_log_interval: delay_req_interval,
+            print: true,
+        },
+        stop,
+    )?;
+    if report.master.is_none() {
+        bail!(
+            "Kein Master in Domain {} gefunden. Firewall (scripts/firewall.ps1), Interface und Domain prüfen.",
+            cfg.domain
+        );
+    }
+    Ok(())
 }
 
 fn cmd_interfaces(config_path: Option<&std::path::Path>) -> Result<()> {
