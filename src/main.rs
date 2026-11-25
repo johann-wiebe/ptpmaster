@@ -86,10 +86,118 @@ fn real_main(cli: Cli) -> Result<()> {
             duration,
             delay_req_interval,
         ),
-        Command::Install { .. } | Command::Uninstall | Command::Service { .. } => {
-            bail!("noch nicht implementiert")
+        Command::Install { start, overrides } => {
+            cmd_install(cli.config.as_deref(), &overrides, start)
+        }
+        Command::Uninstall => cmd_uninstall(),
+        Command::Service { overrides } => cmd_service(cli.config, overrides),
+    }
+}
+
+#[cfg(windows)]
+fn cmd_install(
+    config_path: Option<&std::path::Path>,
+    overrides: &Overrides,
+    start: bool,
+) -> Result<()> {
+    // Konfiguration vorab prüfen, damit der Dienst nicht erst beim Start scheitert.
+    let (cfg, used) = config::load(config_path, overrides)?;
+    match &used {
+        Some(p) => println!("Konfiguration: {}", p.display()),
+        None => println!(
+            "Keine Konfigurationsdatei – der Dienst nutzt Profil '{}' (Datei anlegen: {})",
+            cfg.profile,
+            config::default_config_path().display()
+        ),
+    }
+    ptpmaster::win::service::install(config_path, &overrides.to_args(), start)
+}
+
+#[cfg(windows)]
+fn cmd_uninstall() -> Result<()> {
+    ptpmaster::win::service::uninstall()
+}
+
+#[cfg(windows)]
+fn cmd_service(config_path: Option<PathBuf>, overrides: Overrides) -> Result<()> {
+    ptpmaster::win::service::run_dispatcher(Box::new(move |stop| {
+        service_body(config_path.as_deref(), &overrides, stop)
+    }))
+}
+
+/// Dienstbetrieb: Logdatei + Event Log; bei Startfehlern (z. B. Netzwerk beim Booten noch nicht
+/// bereit) alle 10 s neu versuchen.
+#[cfg(windows)]
+fn service_body(
+    config_path: Option<&std::path::Path>,
+    overrides: &Overrides,
+    stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+) -> Result<()> {
+    use std::sync::atomic::Ordering;
+    use std::time::Duration;
+    use tracing::error;
+
+    let (cfg, used) = match config::load(config_path, overrides) {
+        Ok(c) => c,
+        Err(e) => {
+            let _guard = logging::init(LogOptions {
+                level: "info".into(),
+                console: false,
+                file: None,
+                eventlog: true,
+            });
+            error!("Konfiguration fehlerhaft: {e:#}");
+            return Err(e);
+        }
+    };
+    let _guard = logging::init(log_options(&cfg, false, true))?;
+    log_startup(&cfg, used.as_deref());
+    info!("Betrieb als Windows-Dienst");
+    let mut attempt = 0u32;
+    while !stop.load(Ordering::SeqCst) {
+        match Master::start(cfg.clone(), stop.clone()) {
+            Ok(master) => {
+                let mut ticks = 0u64;
+                master.run(|s| {
+                    ticks += 1;
+                    if ticks % 300 == 0 {
+                        info!(target: logging::STATUS_TARGET, "{}", s.line());
+                    }
+                })?;
+            }
+            Err(e) => {
+                attempt += 1;
+                if attempt == 1 || attempt % 30 == 0 {
+                    error!(
+                        "Start fehlgeschlagen (Versuch {attempt}): {e:#} – neuer Versuch alle 10 s"
+                    );
+                }
+                for _ in 0..100 {
+                    if stop.load(Ordering::SeqCst) {
+                        break;
+                    }
+                    std::thread::sleep(Duration::from_millis(100));
+                }
+            }
         }
     }
+    info!("Dienst beendet");
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn cmd_install(_: Option<&std::path::Path>, _: &Overrides, _: bool) -> Result<()> {
+    bail!("Der Windows-Dienst ist nur unter Windows verfügbar")
+}
+
+#[cfg(not(windows))]
+fn cmd_uninstall() -> Result<()> {
+    bail!("Der Windows-Dienst ist nur unter Windows verfügbar")
+}
+
+#[cfg(not(windows))]
+fn cmd_service(_: Option<PathBuf>, _: Overrides) -> Result<()> {
+    bail!("Der Windows-Dienst ist nur unter Windows verfügbar")
 }
 
 /// Startmeldungen, die für jeden Betriebsmodus gleich sind.

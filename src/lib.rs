@@ -6,6 +6,7 @@
 
 pub mod bmca;
 pub mod clock;
+pub mod cmdline;
 pub mod config;
 pub mod iface;
 pub mod logging;

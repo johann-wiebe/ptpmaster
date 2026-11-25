@@ -3,6 +3,7 @@
 
 pub mod eventlog;
 pub mod iface;
+pub mod service;
 pub mod sock;
 pub mod tscaps;
 

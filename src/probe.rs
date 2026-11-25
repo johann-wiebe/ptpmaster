@@ -96,6 +96,13 @@ struct PendingSync {
     at: Instant,
 }
 
+#[derive(Default)]
+struct PendingDelay {
+    t3: Option<f64>,
+    t4: Option<f64>,
+    at: Option<Instant>,
+}
+
 struct State {
     own: PortIdentity,
     foreign: ForeignMasters,
@@ -106,7 +113,9 @@ struct State {
     early_follow_up: HashMap<u16, (f64, Instant)>,
     /// (t1 inkl. Korrekturen, t2)
     last_sync: Option<(f64, f64)>,
-    pending_delay: HashMap<u16, (f64, Instant)>,
+    /// Delay_Req in Arbeit. Der Eintrag entsteht VOR dem Senden, weil das Delay_Resp im
+    /// Empfangsthread schneller da sein kann, als send_event zurückkehrt.
+    pending_delay: HashMap<u16, PendingDelay>,
     path_delay: Option<f64>,
     master_delay_log_interval: Option<i8>,
     report: ProbeReport,
@@ -223,14 +232,31 @@ pub fn run(cfg: &Config, opts: &ProbeOptions, stop: Arc<AtomicBool>) -> Result<P
                     },
                 )
                 .to_bytes();
+                if let Ok(mut s) = state.lock() {
+                    s.pending_delay.retain(|_, p| {
+                        p.at.is_some_and(|at| at.elapsed() < Duration::from_secs(10))
+                    });
+                    s.pending_delay.insert(
+                        seq,
+                        PendingDelay {
+                            at: Some(Instant::now()),
+                            ..Default::default()
+                        },
+                    );
+                }
                 match net.event.send_event(&bytes, dest_event) {
                     Ok(tx) => {
                         let t3 = crate::time::utc_to_tai_ns(tx.utc_ns, utc_offset) as f64;
                         if let Ok(mut s) = state.lock() {
-                            s.pending_delay.insert(seq, (t3, Instant::now()));
-                            s.pending_delay
-                                .retain(|_, (_, at)| at.elapsed() < Duration::from_secs(10));
                             s.report.delay_reqs_sent += 1;
+                            let t4 = s.pending_delay.get_mut(&seq).and_then(|p| {
+                                p.t3 = Some(t3);
+                                p.t4
+                            });
+                            if let Some(t4) = t4 {
+                                s.pending_delay.remove(&seq);
+                                complete_delay(&mut s, t3, t4);
+                            }
                         }
                     }
                     Err(e) => eprintln!("Delay_Req nicht gesendet: {e}"),
@@ -415,20 +441,31 @@ fn handle(cfg: &Config, print: bool, state: &Mutex<State>, data: &[u8], pkt: RxP
             if s.master != Some(h.source_port_identity) || *requesting_port_identity != s.own {
                 return;
             }
-            let Some((t3, _)) = s.pending_delay.remove(&h.sequence_id) else {
+            let t4 = receive_timestamp.to_nanos() as f64 - correction_to_nanos(h.correction);
+            let Some(p) = s.pending_delay.get_mut(&h.sequence_id) else {
                 return;
             };
+            if p.t4.is_some() {
+                return; // Duplikat
+            }
+            p.t4 = Some(t4);
+            let t3 = p.t3;
             s.report.delay_resps += 1;
             s.second.delay_resps += 1;
             s.master_delay_log_interval = Some(h.log_message_interval);
-            let t4 = receive_timestamp.to_nanos() as f64 - correction_to_nanos(h.correction);
-            if let Some((t1, t2)) = s.last_sync {
-                let delay = ((t2 - t1) + (t4 - t3)) / 2.0;
-                s.path_delay = Some(delay);
-                s.report.complete_exchanges += 1;
+            if let Some(t3) = t3 {
+                s.pending_delay.remove(&h.sequence_id);
+                complete_delay(&mut s, t3, t4);
             }
         }
         _ => {}
+    }
+}
+
+fn complete_delay(s: &mut State, t3: f64, t4: f64) {
+    if let Some((t1, t2)) = s.last_sync {
+        s.path_delay = Some(((t2 - t1) + (t4 - t3)) / 2.0);
+        s.report.complete_exchanges += 1;
     }
 }
 
