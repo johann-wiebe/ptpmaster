@@ -213,4 +213,4 @@ Kopie (Push-Spiegel) des eigentlichen Repos; entwickelt wird dort nicht, Änderu
 würden beim nächsten Spiegeln überschrieben. Die Windows-Builds liegen dort unter Releases. Die
 Actions des GitHub-Repos sind aus; gebaut wird auf der eigenen CI. Bei einem Tag `v*` legt sie
 das GitHub-Release per API an, sofern das Secret `GH_RELEASE_TOKEN` (Contents: write) gesetzt
-ist. Eine Lizenz ist bewusst noch nicht festgelegt.
+ist. Lizenz: CC BY-NC-SA 4.0 (`LICENSE`), festgelegt am 2026-11-26.

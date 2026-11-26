@@ -334,3 +334,11 @@ cargo xwin clippy --target x86_64-pc-windows-msvc --all-targets -- -D warnings
 Die Integrationstests starten Master und probe über 127.0.0.1 mit hohen Ports (41319 ff.) und
 prüfen, dass Sync, Follow_Up, Delay_Req und Delay_Resp vollständig ablaufen. Außerdem prüfen
 sie den Wechsel auf PASSIVE und zurück sowie die Robustheit gegen Management- und Müllpakete.
+
+## Lizenz
+
+© 2026 Johann Wiebe. ptpmaster steht unter
+[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.de) (Namensnennung –
+Nicht kommerziell – Weitergabe unter gleichen Bedingungen), Volltext in [`LICENSE`](LICENSE).
+Nutzen, Verändern und Weitergeben sind erlaubt, solange der Urheber genannt wird, kein
+kommerzieller Zweck verfolgt wird und Bearbeitungen unter derselben Lizenz stehen.

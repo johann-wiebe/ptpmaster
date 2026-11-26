@@ -18,7 +18,7 @@ cargo xwin build --release --target "$TARGET"
 rm -rf "dist/$NAME" "dist/$NAME.zip"
 mkdir -p "dist/$NAME/scripts"
 cp "target/$TARGET/release/ptpmaster.exe" "dist/$NAME/"
-cp ptpmaster.example.toml README.md DECISIONS.md "dist/$NAME/"
+cp ptpmaster.example.toml README.md DECISIONS.md LICENSE "dist/$NAME/"
 cp ptpmaster.example.toml "dist/$NAME/ptpmaster.toml"
 cp scripts/firewall.ps1 "dist/$NAME/scripts/"
 (cd dist && zip -qr "$NAME.zip" "$NAME")
