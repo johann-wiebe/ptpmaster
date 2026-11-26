@@ -208,8 +208,9 @@ PowerShell zum Testen stand nicht zur Verfügung.
 
 **D-30 Git.** Branch `main`. Autor „Johann Wiebe“ mit der noreply-Adresse von GitHub.
 
-**D-31 Veröffentlichung.** Der Quellcode ist öffentlich unter
-https://github.com/johann-wiebe/ptpmaster, die Windows-Builds liegen dort unter Releases. Die
-Actions des GitHub-Repos sind aus; gebaut wird auf einer eigenen CI, die bei einem Tag `v*` das
-Release per GitHub-API anlegt (Secret `GH_RELEASE_TOKEN`, Contents: write). Eine Lizenz ist
-bewusst noch nicht festgelegt.
+**D-31 Veröffentlichung.** https://github.com/johann-wiebe/ptpmaster ist eine öffentliche
+Kopie (Push-Spiegel) des eigentlichen Repos; entwickelt wird dort nicht, Änderungen auf GitHub
+würden beim nächsten Spiegeln überschrieben. Die Windows-Builds liegen dort unter Releases. Die
+Actions des GitHub-Repos sind aus; gebaut wird auf der eigenen CI. Bei einem Tag `v*` legt sie
+das GitHub-Release per API an, sofern das Secret `GH_RELEASE_TOKEN` (Contents: write) gesetzt
+ist. Eine Lizenz ist bewusst noch nicht festgelegt.
