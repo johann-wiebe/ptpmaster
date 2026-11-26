@@ -2,7 +2,7 @@ name: Windows-Build
 
 # Baut ptpmaster.exe (x86_64-pc-windows-msvc) per cargo-xwin auf dem Linux-Runner.
 # - Push auf main / manuell: Prüfungen, Tests, ZIP als Artifact (Run-Seite → Artifacts)
-# - Tag v*: zusätzlich ein Release mit dem ZIP als Download
+# - Tag v*: zusätzlich ein Release mit dem ZIP als Download (eigene CI und GitHub-Releases)
 on:
   push:
     branches: [main]
@@ -57,8 +57,8 @@ jobs:
           path: dist/${{ steps.build.outputs.name }}/
           if-no-files-found: error
 
-      - name: Release
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Release (CI-Server)
+        if: startsWith(github.ref, 'refs/tags/v') && github.server_url != 'https://github.com'
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
           API: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}
@@ -77,4 +77,35 @@ jobs:
           for f in "dist/$NAME.zip" "dist/$NAME.sha256"; do
             curl -fsS "${auth[@]}" -X POST "$API/releases/$id/assets?name=$(basename "$f")" -F "attachment=@$f" > /dev/null
             echo "hochgeladen: $(basename "$f")"
+          done
+
+      - name: Release auf GitHub
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          NAME: ${{ steps.build.outputs.name }}
+        run: |
+          set -euo pipefail
+          if [ -z "$TOKEN" ]; then echo "GH_RELEASE_TOKEN fehlt – kein GitHub-Release"; exit 0; fi
+          api=https://api.github.com/repos/$REPO
+          auth=(-H "Authorization: Bearer $TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28')
+          id=$(curl -fsS "${auth[@]}" "$api/releases/tags/$TAG" 2>/dev/null \
+                 | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])' || true)
+          if [ -z "$id" ]; then
+            body=$(python3 -c 'import json,os; print(json.dumps({"tag_name": os.environ["TAG"], "target_commitish": os.environ["SHA"], "name": "ptpmaster " + os.environ["TAG"], "body": "Windows-Build (x86_64). ZIP entpacken, README.md lesen, `ptpmaster.exe interfaces` und `ptpmaster.exe run` starten. SHA-256 in der .sha256-Datei."}))')
+            id=$(curl -fsS "${auth[@]}" -X POST "$api/releases" -d "$body" \
+                   | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
+          fi
+          for f in "dist/$NAME.zip" "dist/$NAME.sha256"; do
+            n=$(basename "$f")
+            # gleichnamiges Asset ersetzen (erneuter Lauf zum selben Tag)
+            old=$(curl -fsS "${auth[@]}" "$api/releases/$id/assets" \
+                    | python3 -c 'import json,sys,os; print(" ".join(str(a["id"]) for a in json.load(sys.stdin) if a["name"]==sys.argv[1]))' "$n")
+            for a in $old; do curl -fsS "${auth[@]}" -X DELETE "$api/releases/assets/$a"; done
+            curl -fsS "${auth[@]}" -H 'Content-Type: application/octet-stream' --data-binary "@$f" \
+              "https://uploads.github.com/repos/$REPO/releases/$id/assets?name=$n" > /dev/null
+            echo "hochgeladen: $n"
           done

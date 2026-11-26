@@ -302,12 +302,13 @@ nicht aktiv sein (er bindet ebenfalls 319/320). Prüfen mit `netstat -ano -p udp
 
 ## Download
 
-Die CI (`.github/workflows/windows.yml`) baut die exe bei jedem Push auf `main`:
+Fertige Windows-Builds (x86_64) gibt es unter
+**https://github.com/johann-wiebe/ptpmaster/releases** – ZIP herunterladen, entpacken, fertig.
+Neben dem ZIP liegt eine `.sha256`-Datei mit den Prüfsummen von ZIP und `ptpmaster.exe`
+(prüfen mit `Get-FileHash ptpmaster.exe` in PowerShell).
 
-- **Neuester Stand:** https://github.com/johann-wiebe/ptpmaster/actions → letzter Lauf von
-  „Windows-Build“ → Artifact `ptpmaster-<version>-windows-x64`
-- **Releases:** Ein Tag `v*` (z. B. `git tag v0.1.1 && git push origin v0.1.1`) erzeugt ein Release
-  mit ZIP und SHA-256: https://github.com/johann-wiebe/ptpmaster/releases
+Gebaut wird per CI (`.github/workflows/windows.yml`, cargo-xwin auf Linux). Ein Tag `v*`
+(z. B. `git tag v0.1.1 && git push origin v0.1.1`) erzeugt das Release mit ZIP und SHA-256.
 
 ## Bauen
 

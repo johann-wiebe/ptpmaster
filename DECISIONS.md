@@ -206,5 +206,10 @@ und Software-Timestamping des Treibers sind ungetestet. Ebenso ungetestet ist da
 mit echten Slaves (ptp4l, Dante/AES67). Das PowerShell-Skript ist nur von Hand geprüft; eine
 PowerShell zum Testen stand nicht zur Verfügung.
 
-**D-30 Git.** Lokales Repo, Branch `main`, nicht gepusht. Autor „Johann Wiebe“ mit der
-noreply-Adresse von GitHub.
+**D-30 Git.** Branch `main`. Autor „Johann Wiebe“ mit der noreply-Adresse von GitHub.
+
+**D-31 Veröffentlichung.** Der Quellcode ist öffentlich unter
+https://github.com/johann-wiebe/ptpmaster, die Windows-Builds liegen dort unter Releases. Die
+Actions des GitHub-Repos sind aus; gebaut wird auf einer eigenen CI, die bei einem Tag `v*` das
+Release per GitHub-API anlegt (Secret `GH_RELEASE_TOKEN`, Contents: write). Eine Lizenz ist
+bewusst noch nicht festgelegt.
